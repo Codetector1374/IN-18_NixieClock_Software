@@ -40,11 +40,12 @@ void initHV57708() {
 void shiftBit(byte bits) {
     HV_CLK_L;
 
-    HV_GPIO -> BSRR = bits << 12;
+    HV_GPIO -> ODR |= (bits << 12);
     DELAY_1_NOP;
     HV_CLK_H;
     DELAY_1_NOP;
     HV_CLK_L;
+    HV_GPIO -> BRR = 0x1111 << 12;
 }
 
 void latch() {
@@ -54,7 +55,7 @@ void latch() {
 }
 
 void HV_writeData(uint64_t bits) {
-    for (uint8_t i = 60; i >= 0 ; i -= 4) {
+    for (int8_t i = 60; i >= 0 ; i -= 4) {
         shiftBit((byte) ((bits >> i) & 0x1111));
     }
     latch();

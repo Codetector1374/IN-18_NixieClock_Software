@@ -25,7 +25,7 @@ SET(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F103C8Tx_FLASH.ld)
 SET(COMMON_FLAGS "-mcpu=cortex-m3 ${FPU_FLAGS} -mthumb -mthumb-interwork -ffunction-sections -fdata-sections -g -fno-common -fmessage-length=0 -specs=nosys.specs -specs=nano.specs")
 
 SET(CMAKE_CXX_FLAGS_INIT "${COMMON_FLAGS} -std=c++11")
-SET(CMAKE_C_FLAGS_INIT "${COMMON_FLAGS} -std=gnu99")
+SET(CMAKE_C_FLAGS_INIT "${COMMON_FLAGS} -std=gnu99 -funroll-loops -floop-optimize")
 SET(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,-gc-sections -T ${LINKER_SCRIPT}")
 
 PROJECT(IN18_NixieClock C ASM)
