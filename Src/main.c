@@ -141,12 +141,16 @@ int main(void) {
 
     /* Create the thread(s) */
     /* definition and creation of defaultTask */
-    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 64);
     defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
     /* USER CODE BEGIN RTOS_THREADS */
     osThreadDef(miscLoopTask, miscLoop, osPriorityBelowNormal, 0, 128);
     osThreadCreate(osThread(miscLoopTask), NULL);
+
+    // Clock Render Thread
+    osThreadDef(clockRenderTask, clockRenderLoop, osPriorityAboveNormal, 0, 128);
+    osThreadCreate(osThread(clockRenderTask), NULL);
     /* USER CODE END RTOS_THREADS */
 
     /* USER CODE BEGIN RTOS_QUEUES */
