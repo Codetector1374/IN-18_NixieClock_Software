@@ -25,7 +25,8 @@
 #define HV_D4_H HV_GPIO -> BSRR = 1U << HV_D4
 
 void initHV57708() {
-    HV_POL_H;
+    HV_POL_L;
+    HV_BL_H;
 
     HV_D1_L;
     HV_D2_L;
@@ -45,7 +46,7 @@ void shiftBit(byte bits) {
     HV_CLK_H;
     DELAY_1_NOP;
     HV_CLK_L;
-    HV_GPIO -> BRR = 0x1111 << 12;
+    HV_GPIO -> BRR = 0b1111 << 12;
 }
 
 void latch() {
@@ -56,7 +57,7 @@ void latch() {
 
 void HV_writeData(uint64_t bits) {
     for (int8_t i = 60; i >= 0 ; i -= 4) {
-        shiftBit((byte) ((bits >> i) & 0x1111));
+        shiftBit((byte) ((bits >> i) & 0b1111));
     }
     latch();
 }

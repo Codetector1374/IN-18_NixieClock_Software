@@ -55,6 +55,7 @@
 
 /* USER CODE BEGIN Includes */
 #include "pins.h"
+#include "../Lib/hv57708.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -155,9 +156,8 @@ int main(void) {
 
     /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
+    renderQueueHandle = xQueueCreate(4, sizeof(char *));
     /* USER CODE END RTOS_QUEUES */
-
-
     /* Start scheduler */
     osKernelStart();
 
