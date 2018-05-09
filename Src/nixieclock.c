@@ -10,6 +10,9 @@
 #include "led_driver.h"
 #include "hv57708.h"
 #include "ds3231.h"
+#include "sram.h"
+
+#define LONG_BTN_PRESS 500
 
 QueueHandle_t renderQueueHandle;
 QueueHandle_t buttonPressHandle;
@@ -32,6 +35,8 @@ uint16_t current_setting_value = 0;
 int8_t current_setting_changed = 0;
 
 void miscLoop(const void __unused *p) {
+//    HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 1234);
+    uint16_t magic = BKP_REG_READ(0);
     osDelay(10);
     uint8_t buttonStates =  (uint8_t) (((GPIOA -> IDR) >> 4) & 0b111);
     uint32_t lastButtonActionTime = 0;
@@ -50,7 +55,7 @@ void miscLoop(const void __unused *p) {
                     lastButtonActionTime = HAL_GetTick();
                     timeSinceLastAction = 0;
                 } else if (btnChange < 0) {
-                    if ( (lastButtonId != -1) && ((timeSinceLastAction) < 1000)) { // Short Press?
+                    if ( (lastButtonId != -1) && ((timeSinceLastAction) < LONG_BTN_PRESS)) { // Short Press?
                         buttonAction_t buttonAction1 = {.buttonId = lastButtonId, .actionType = 0};
                         xQueueSend(buttonPressHandle, &buttonAction1, 0);
                         lastButtonId = -1;
@@ -58,7 +63,7 @@ void miscLoop(const void __unused *p) {
                 }
             }
         }
-        if ((lastButtonId != -1) && (timeSinceLastAction >= 1000)) {
+        if ((lastButtonId != -1) && (timeSinceLastAction >= LONG_BTN_PRESS)) {
             buttonAction_t buttonAction = {.buttonId = lastButtonId, .actionType = 1};
             xQueueSend(buttonPressHandle, &buttonAction, 0);
             lastButtonId = -1;
@@ -70,8 +75,9 @@ void miscLoop(const void __unused *p) {
 
 void reloadSettings() {
     // Antiposion
+//    antiPosionInterval = 10000;
     antiPosionInterval = ((uint32_t)readStoredSettingValue(CLOCKSETTING_ANTIPOSION_INTERVAL) * 60000);
-    antiPosionTargetCycle = 2;
+    antiPosionTargetCycle = 4;
 }
 
 int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit) {
@@ -168,7 +174,7 @@ void clockDisplayMechanism() {
     rtcTime_t time;
     time = RTC_readTime();
     sprintf(textDisplay, "%02d%02d%02d", time.hour, time.minute, time.second);
-    xQueueSend(renderQueueHandle, &textDisplay, 100);
+    xQueueSend(renderQueueHandle, &textDisplay, 0);
 }
 
 void settingRenderMechanism() {
@@ -176,7 +182,7 @@ void settingRenderMechanism() {
         current_setting_item = CLOCKSETTING_HOUR;
     }
     sprintf(textDisplay, "%02d%04d", current_setting_item, current_setting_value);
-    xQueueSend(renderQueueHandle, &textDisplay, 100);
+    xQueueSend(renderQueueHandle, &textDisplay, 10);
 }
 
 void antiPosionMechanism() {
@@ -187,7 +193,7 @@ void antiPosionMechanism() {
         antiPosionCycle++;
     }
     xQueueSend(renderQueueHandle, &textDisplay, 0);
-    osDelay(100);
+    osDelay(20);
     if (antiPosionCycle >= antiPosionTargetCycle) {
         masterClockState = CLOCKSTATE_TIME;
         antiPosionCycle = 0;
@@ -195,12 +201,13 @@ void antiPosionMechanism() {
 }
 
 void antiPosionHandle() {
-    uint32_t currentTime = HAL_GetTick();
-    if (currentTime - lastAntiPosion > antiPosionInterval) {
-        masterClockState = CLOCKSTATE_ANTIPOSION;
-        lastAntiPosion = currentTime;
+    if (antiPosionInterval > 0) {
+        uint32_t currentTime = HAL_GetTick();
+        if (currentTime - lastAntiPosion > antiPosionInterval) {
+            masterClockState = CLOCKSTATE_ANTIPOSION;
+            lastAntiPosion = currentTime;
+        }
     }
-
 }
 
 void ledHandle() {

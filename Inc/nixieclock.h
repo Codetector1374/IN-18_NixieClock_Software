@@ -10,6 +10,7 @@
 #include "nixie_setting.h"
 
 extern I2C_HandleTypeDef hi2c1;
+extern RTC_HandleTypeDef hrtc;
 
 extern QueueHandle_t renderQueueHandle;
 extern QueueHandle_t buttonPressHandle;

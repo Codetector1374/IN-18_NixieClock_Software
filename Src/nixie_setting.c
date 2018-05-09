@@ -2,6 +2,7 @@
 // Created by codetector on 5/4/18.
 //
 
+#include "sram.h"
 #include "nixie_setting.h"
 #include "nixieclock.h"
 #include "ds3231.h"
@@ -19,7 +20,7 @@ uint16_t readSettingValue(clockSettingItem_t item) {
 uint16_t readStoredSettingValue(clockSettingItem_t item) {
     switch (item) {
         case CLOCKSETTING_ANTIPOSION_INTERVAL:
-
+            return (uint16_t) (BKP_REG_READ(8) & 0b111111);
         case CLOCKSETTING_HOUR:
             return RTC_readTime().hour;
         case CLOCKSETTING_MINUTE:
