@@ -28,12 +28,15 @@ uint16_t readStoredSettingValue(clockSettingItem_t item) {
         case CLOCKSETTING_SECOND:
             return RTC_readTime().second;
         default:
-            return readSettingValue(item);
+            return 0;
     }
 }
 
 void updateSettingValue(clockSettingItem_t item, int8_t update) {
     switch (item) {
+        case CLOCKSETTING_ANTIPOSION_INTERVAL:
+            current_setting_value = unsignedBoundedIncrement(current_setting_value, 60, update);
+            break;
         case CLOCKSETTING_HOUR:
             current_setting_value = unsignedBoundedIncrement(current_setting_value, 23, update);
             break;
@@ -41,6 +44,29 @@ void updateSettingValue(clockSettingItem_t item, int8_t update) {
         case CLOCKSETTING_SECOND:
             current_setting_value = unsignedBoundedIncrement(current_setting_value, 59, update);
             break;
+    }
+}
+
+void saveCurrentSettingIfNeeded(clockSettingItem_t item) {
+    if (current_setting_changed) {
+        rtcTime_t t = RTC_readTime();
+        switch (item) {
+            case CLOCKSETTING_ANTIPOSION_INTERVAL:
+                BKP_REG_WRITE_BITS(current_setting_value, 8, 6, 0);
+                break;
+            case CLOCKSETTING_HOUR:
+                t.hour = (uint8_t) current_setting_value;
+                RTC_setTime(t);
+                break;
+            case CLOCKSETTING_MINUTE:
+                t.minute = (uint8_t) current_setting_value;
+                RTC_setTime(t);
+            case CLOCKSETTING_SECOND:
+                t.second = (uint8_t) current_setting_value;
+                RTC_setTime(t);
+            default:
+                break;
+        }
     }
 }
 
@@ -57,26 +83,6 @@ uint16_t unsignedBoundedIncrement(uint16_t value, uint16_t max, int8_t change) {
             return --value;
         } else {
             return max;
-        }
-    }
-}
-
-void saveCurrentSettingIfNeeded(clockSettingItem_t item) {
-    if (current_setting_changed) {
-        rtcTime_t t = RTC_readTime();
-        switch (item) {
-            case CLOCKSETTING_HOUR:
-                t.hour = (uint8_t) current_setting_value;
-                RTC_setTime(t);
-                break;
-            case CLOCKSETTING_MINUTE:
-                t.minute = (uint8_t) current_setting_value;
-                RTC_setTime(t);
-            case CLOCKSETTING_SECOND:
-                t.second = (uint8_t) current_setting_value;
-                RTC_setTime(t);
-            default:
-                break;
         }
     }
 }
