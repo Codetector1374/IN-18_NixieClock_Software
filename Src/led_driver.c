@@ -8,23 +8,29 @@
 #include "macros.h"
 
 void ledReset() {
-    LED_CONTROL_GPIO -> ODR &= ~(1U << LED_CONTROL_PIN);
-    vTaskDelay(1);
+    LED_CONTROL_GPIO -> BRR = (1U << LED_CONTROL_PIN);
+    HAL_Delay(10);
 }
 
 void ledWrite(uint32_t color) {
     for (int i = 23; i >= 0; i--) {
         if ((color >> i) & 1U) {
-            LED_WRITE_HIGH;
+            LED_CONTROL_GPIO -> BSRR = (1U << LED_CONTROL_PIN);
+            DELAY_50_NOP;
+            LED_CONTROL_GPIO -> BRR = 1U << LED_CONTROL_PIN;
+            DELAY_0_NOP;
         } else {
-            LED_WRITE_LOW;
+            LED_CONTROL_GPIO->BSRR = (1U << LED_CONTROL_PIN);
+            DELAY_5_NOP;
+            LED_CONTROL_GPIO->BRR = (1U << LED_CONTROL_PIN);
+            DELAY_50_NOP;
         }
     }
 }
 
 void writeAllLED(uint32_t color) {
     ledReset();
-    for(int i = 0; i < LED_COUNT; i ++) {
+    for (int i = 0; i < LED_COUNT; i++) {
         ledWrite(color);
     }
 }

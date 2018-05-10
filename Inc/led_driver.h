@@ -9,8 +9,6 @@
 #include "pins.h"
 #include "macros.h"
 
-#define LED_WRITE_HIGH do {    LED_CONTROL_GPIO -> BSRR = (1U << LED_CONTROL_PIN); DELAY_50_NOP; LED_CONTROL_GPIO -> BRR = 1U << LED_CONTROL_PIN; } while(0)
-#define LED_WRITE_LOW do {     LED_CONTROL_GPIO -> BSRR = (1U << LED_CONTROL_PIN); DELAY_5_NOP; LED_CONTROL_GPIO -> BRR = (1U << LED_CONTROL_PIN); DELAY_50_NOP; } while(0)
 void ledReset();
 void ledWrite(uint32_t color);
 void writeAllLED(uint32_t color);

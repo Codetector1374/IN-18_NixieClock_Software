@@ -146,7 +146,7 @@ int main(void)
     osThreadCreate(osThread(miscLoopTask), NULL);
 
     // Clock Render Thread
-    osThreadDef(clockRenderTask, clockRenderLoop, osPriorityNormal, 0, 64);
+    osThreadDef(clockRenderTask, clockRenderLoop, osPriorityAboveNormal, 0, 64);
     osThreadCreate(osThread(clockRenderTask), NULL);
 
     // Clock Mechanism Logic Control

@@ -33,6 +33,7 @@ uint8_t antiPosionPosition, antiPosionCycle = 0, antiPosionTargetCycle;
 clockSettingItem_t current_setting_item = CLOCKSETTING_HOUR;
 uint16_t current_setting_value = 0;
 int8_t current_setting_changed = 0;
+int8_t statusUpdated = 1;
 
 void miscLoop(const void __unused *p) {
 //    HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 1234);
@@ -117,12 +118,14 @@ void buttonHandle() {
                     switch (btnPress.buttonId) {
                         case 0:
                             masterClockState = CLOCKSTATE_OFF;
+                            statusUpdated = 1;
                             break;
                         case 1:
                             masterClockState = CLOCKSTATE_SETTING;
                             current_setting_item = CLOCKSETTING_HOUR;
                             current_setting_value = readStoredSettingValue(current_setting_item);
                             current_setting_changed = 0;
+                            statusUpdated = 1;
                             break;
                         case 2:
                             break;
@@ -212,17 +215,18 @@ void antiPosionHandle() {
 
 void ledHandle() {
     if (masterClockState == CLOCKSTATE_OFF || masterClockState == CLOCKSTATE_SLEEP) {
-        writeAllLED(0);
+        if (statusUpdated) {
+            writeAllLED(0x0);
+        }
     } else {
-        GPIOA -> ODR &= ~(1U << 7);
     }
 }
 
 void powerHandle() {
     if (masterClockState == CLOCKSTATE_OFF || masterClockState == CLOCKSTATE_SLEEP) {
-        GPIOA -> ODR |= 1U << 7;
+        GPIOA -> BSRR = 1U << 7;
     } else {
-        GPIOA -> ODR &= ~(1U << 7);
+        GPIOA -> BRR = (1U << 7);
     }
 }
 
@@ -247,7 +251,8 @@ void clockMechanismLoop(const void __unused *p) {
             default:
                 break;
         }
-        osDelay(10);
+        osDelay(1);
+        statusUpdated = 0;
     }
 }
 
