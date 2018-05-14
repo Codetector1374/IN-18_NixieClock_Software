@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stm32f103xb.h>
 #include <clockState.h>
+#include "th06c.h"
 #include "nixieclock.h"
 #include "cmsis_os.h"
 #include "led_driver.h"
@@ -28,8 +29,8 @@ static char textDisplay[] = {'0', '0', '0', '0', '0', '0', '\0'};
 // State Machine Keeping Stuff
 int8_t masterClockState = CLOCKSTATE_TIME;
 uint32_t lastActivity = 0;
-uint32_t lastAntiPosion = 0, antiPosionInterval;
-uint8_t antiPosionPosition, antiPosionCycle = 0, antiPosionTargetCycle;
+uint32_t lastAntiPosion = 0, antiPosionInterval, antiPoisonTargetTime;
+uint8_t antiPosionPosition;
 clockSettingItem_t current_setting_item = CLOCKSETTING_HOUR;
 uint16_t current_setting_value = 0;
 int8_t current_setting_changed = 0;
@@ -78,7 +79,7 @@ void reloadSettings() {
     // Antiposion
 //    antiPosionInterval = 10000;
     antiPosionInterval = ((uint32_t)readStoredSettingValue(CLOCKSETTING_ANTIPOSION_INTERVAL) * 60000);
-    antiPosionTargetCycle = 4;
+    antiPoisonTargetTime = 10 * 1000;
 }
 
 int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit) {
@@ -128,6 +129,7 @@ void buttonHandle() {
                             statusUpdated = 1;
                             break;
                         case 2:
+                            masterClockState = CLOCKSTATE_TUBETEST;
                             break;
                     }
                 }
@@ -168,6 +170,33 @@ void buttonHandle() {
                     masterClockState = CLOCKSTATE_TIME;
                 }
                 break;
+            case CLOCKSTATE_TUBETEST:
+                if (btnPress.actionType == 1) {
+                    if (btnPress.buttonId != 1) {
+                        masterClockState = CLOCKSTATE_TUBERECOVER;
+                    } else {
+                        masterClockState = CLOCKSTATE_TIME;
+                    }
+                } else {
+                    if (btnPress.buttonId == 0) {
+                        antiPosionPosition --;
+                    } else if (btnPress.buttonId == 2) {
+                        antiPosionPosition ++;
+                    } else {
+                        antiPosionPosition = 0;
+                    }
+                    if (antiPosionPosition > 9) {
+                        antiPosionPosition = 0;
+                    }
+                }
+                break;
+            case CLOCKSTATE_TUBERECOVER:
+                if (btnPress.actionType == 1) {
+                    masterClockState = CLOCKSTATE_TIME;
+                } else {
+                    masterClockState = CLOCKSTATE_TUBETEST;
+                }
+                break;
         }
     }
 }
@@ -188,18 +217,22 @@ void settingRenderMechanism() {
     xQueueSend(renderQueueHandle, &textDisplay, 10);
 }
 
-void antiPosionMechanism() {
+void tubeRecoverMechanism() {
     sprintf(textDisplay, "%06d", ((uint16_t) antiPosionPosition) * 111111);
     antiPosionPosition ++;
     if (antiPosionPosition > 9) {
         antiPosionPosition = 0;
-        antiPosionCycle++;
     }
     xQueueSend(renderQueueHandle, &textDisplay, 0);
-    osDelay(20);
-    if (antiPosionCycle >= antiPosionTargetCycle) {
+    osDelay(100);
+}
+
+void antiPosionMechanism() {
+    tubeRecoverMechanism();
+    uint32_t millis = HAL_GetTick();
+    if ((millis - lastAntiPosion) >= antiPoisonTargetTime) {
         masterClockState = CLOCKSTATE_TIME;
-        antiPosionCycle = 0;
+        lastAntiPosion = millis;
     }
 }
 
@@ -211,6 +244,10 @@ void antiPosionHandle() {
             lastAntiPosion = currentTime;
         }
     }
+}
+
+void tubeTestMechanism() {
+    sprintf(textDisplay, "%06d", ((uint16_t) antiPosionPosition) * 111111);
 }
 
 void ledHandle() {
@@ -230,6 +267,12 @@ void powerHandle() {
     }
 }
 
+void temperatureMechanism() {
+    uint16_t temp = (uint16_t) (getTemperatureC() * 10);
+    sprintf(textDisplay,  "%02d---%01d", temp / 10, (temp % 10));
+    xQueueSend(renderQueueHandle, &textDisplay, 1);
+}
+
 void clockMechanismLoop(const void __unused *p) {
     osDelay(100);
     for(;;) {
@@ -242,11 +285,20 @@ void clockMechanismLoop(const void __unused *p) {
                 clockDisplayMechanism();
                 antiPosionHandle();
                 break;
+            case CLOCKSTATE_TEMP:
+                temperatureMechanism();
+                break;
             case CLOCKSTATE_SETTING:
                 settingRenderMechanism();
                 break;
             case CLOCKSTATE_ANTIPOSION:
                 antiPosionMechanism();
+                break;
+            case CLOCKSTATE_TUBETEST:
+                tubeTestMechanism();
+                break;
+            case CLOCKSTATE_TUBERECOVER:
+                tubeRecoverMechanism();
                 break;
             default:
                 break;
