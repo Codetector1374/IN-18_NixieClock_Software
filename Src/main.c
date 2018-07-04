@@ -47,6 +47,7 @@
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
+#include <ds3231.h>
 #include "main.h"
 #include "stm32f1xx_hal.h"
 #include "cmsis_os.h"
@@ -160,7 +161,7 @@ int main(void)
     renderQueueHandle = xQueueCreate(4, sizeof(char *));
     buttonPressHandle = xQueueCreate(4, sizeof(struct buttonAction));
   /* USER CODE END RTOS_QUEUES */
- 
+    RTC_init();
 
   /* Start scheduler */
   osKernelStart();

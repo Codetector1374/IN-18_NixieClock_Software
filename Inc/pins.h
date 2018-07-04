@@ -2,6 +2,7 @@
 #define NIXIE_PINS_H
 
 #include "stm32f1xx_hal.h"
+#include "nixieclock.h"
 
 #define BUZZER_GPIO GPIOB
 //
@@ -10,7 +11,11 @@
 
 #define LED_CONTROL_GPIO GPIOA
 #define LED_CONTROL_PIN 8
+#ifdef IN14
+#define LED_COUNT 6
+#else
 #define LED_COUNT 12
+#endif
 
 #define HV_GPIO GPIOB
 #define HV_BL 8

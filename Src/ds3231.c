@@ -11,11 +11,24 @@ uint8_t HOUR_BCD2DEC(uint8_t data);
 uint8_t DEC2BCD(uint8_t data);
 uint8_t HOUR_DEC2BCD(uint8_t hour) ;
 
+void RTC_init() {
+    uint8_t data[0x13];
+    uint8_t dataToSend = 0x0;
+
+    HAL_I2C_Master_Transmit(&hi2c1, DS3231_I2C_Address, &dataToSend, 1, 50);
+    HAL_I2C_Master_Receive(&hi2c1, DS3231_I2C_Address, data, 0x13, 50);
+
+    if ((data[1] >> 7) & 0b1) {
+        dataToSend = 0x0;
+    }
+}
+
 rtcTime_t RTC_readTime() {
     rtcTime_t time = {.hour = 0, .minute = 0, .second = 0};
 
     uint8_t data[3];
-    HAL_I2C_Master_Transmit(&hi2c1, DS3231_I2C_Address, 0x00, 1, 50);
+    uint8_t dataToTransimit = 0x0;
+    HAL_I2C_Master_Transmit(&hi2c1, DS3231_I2C_Address, &dataToTransimit, 1, 50);
     HAL_I2C_Master_Receive(&hi2c1, DS3231_I2C_Address, data, 3, 50);
 
     time.second = BCD2DEC(data[0]);
@@ -33,6 +46,27 @@ void RTC_setTime(rtcTime_t timeSet) {
     data[3] = HOUR_DEC2BCD(timeSet.hour);
 
     HAL_I2C_Master_Transmit(&hi2c1, DS3231_I2C_Address, data, 4, 50);
+}
+
+rtcDate_t RTC_readDate() {
+    uint8_t data[3];
+    uint8_t address = 0x3;
+    HAL_I2C_Master_Transmit(&hi2c1, DS3231_I2C_Address, &address, 1, 50);
+    HAL_I2C_Master_Receive(&hi2c1, DS3231_I2C_Address, data, 3, 50);
+
+    rtcDate_t date = {.day = 0, .month = 0, .year = 0};
+
+    date.day = BCD2DEC(data[0]);
+    int centryFlag = (data[1] >> 7) & 0b1;
+    date.month = BCD2DEC((data[1] & (uint8_t)0b01111111));
+    uint16_t year = (uint16_t) BCD2DEC(data[2]);
+    if (centryFlag) {
+        year += 2000;
+    } else {
+        year += 1900;
+    }
+    date.year = year;
+    return date;
 }
 
 rtcTime_t RTC_offset(rtcTime_t time, int8_t offsetHour) {

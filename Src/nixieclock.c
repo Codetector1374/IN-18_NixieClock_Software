@@ -18,10 +18,13 @@
 QueueHandle_t renderQueueHandle;
 QueueHandle_t buttonPressHandle;
 
-uint64_t translateDisplay(char* charsToDisplay) ;
-int pinOffsetFromChar(char c) ;
-int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit) ;
-void reloadSettings() ;
+uint64_t translateDisplay(char *charsToDisplay);
+
+int pinOffsetFromChar(char c);
+
+int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit);
+
+void reloadSettings();
 
 static char textDisplay[] = {'0', '0', '0', '0', '0', '0', '\0'};
 
@@ -36,17 +39,25 @@ uint16_t current_setting_value = 0;
 int8_t current_setting_changed = 0;
 int8_t statusUpdated = 1;
 
+uint8_t readButtonStates() {
+#ifdef IN14
+    return ~(uint8_t) (((GPIOA->IDR) >> 4) & 0b111);
+#else
+    return (uint8_t) (((GPIOA -> IDR) >> 4) & 0b111);
+#endif
+}
+
 void miscLoop(const void __unused *p) {
 //    HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 1234);
     uint16_t magic = BKP_REG_READ(0);
     osDelay(10);
-    uint8_t buttonStates =  (uint8_t) (((GPIOA -> IDR) >> 4) & 0b111);
+    uint8_t buttonStates = readButtonStates();
     uint32_t lastButtonActionTime = 0;
     int8_t lastButtonId = -1;
     reloadSettings();
     for (;;) {
         // Process Buttons
-        uint8_t newButtonStates = (uint8_t) (((GPIOA -> IDR) >> 4) & 0b111);
+        uint8_t newButtonStates = readButtonStates();
         uint32_t currentTick = HAL_GetTick();
         uint32_t timeSinceLastAction = currentTick - lastButtonActionTime;
         if (newButtonStates != buttonStates) {
@@ -57,7 +68,7 @@ void miscLoop(const void __unused *p) {
                     lastButtonActionTime = HAL_GetTick();
                     timeSinceLastAction = 0;
                 } else if (btnChange < 0) {
-                    if ( (lastButtonId != -1) && ((timeSinceLastAction) < LONG_BTN_PRESS)) { // Short Press?
+                    if ((lastButtonId != -1) && ((timeSinceLastAction) < LONG_BTN_PRESS)) { // Short Press?
                         buttonAction_t buttonAction1 = {.buttonId = lastButtonId, .actionType = 0};
                         xQueueSend(buttonPressHandle, &buttonAction1, 0);
                         lastButtonId = -1;
@@ -78,13 +89,13 @@ void miscLoop(const void __unused *p) {
 void reloadSettings() {
     // Antiposion
 //    antiPosionInterval = 10000;
-    antiPosionInterval = ((uint32_t)readStoredSettingValue(CLOCKSETTING_ANTIPOSION_INTERVAL) * 60000);
+    antiPosionInterval = ((uint32_t) readStoredSettingValue(CLOCKSETTING_ANTIPOSION_INTERVAL) * 60000);
     antiPoisonTargetTime = 10 * 1000;
 }
 
 int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit) {
     int8_t returnValue = 0;
-    if (((oldState >> bit) & 1U) != ((newState >> bit)& 1U)) {
+    if (((oldState >> bit) & 1U) != ((newState >> bit) & 1U)) {
         returnValue = 1;
         if (((newState >> bit) & 1U)) {
             returnValue = -returnValue;
@@ -95,20 +106,33 @@ int8_t buttonStateCompute(uint8_t oldState, uint8_t newState, uint8_t bit) {
 
 void clockRenderLoop(const void __unused *p) {
     initHV57708();
-    char* renderTarget = textDisplay;
+    char *renderTarget = textDisplay;
     uint64_t renderData = 1, renderDataMod = 0;
+    //Render Group Generation
+    uint64_t g1 = 0b1111111111111100000000001111111111000000000011111111110000000000;
+    uint64_t g2 = 0b1111000000000011111111110000000000111111111100000000001111111111;
+
+    uint8_t delay = 8;
     for (;;) {
-        xQueueReceive(renderQueueHandle, &renderTarget, 100);
-        renderDataMod = translateDisplay(textDisplay);
-        if (renderData != renderDataMod) {
-            renderData = renderDataMod;
-            HV_writeData(renderData);
+        if (masterClockState != CLOCKSTATE_OFF) {
+            if (xQueueReceive(renderQueueHandle, &renderTarget, delay)) {
+                renderDataMod = translateDisplay(textDisplay);
+                renderData = renderDataMod;
+            }
+            osDelay(delay);
+            HV_writeData(renderData & g1);
+            osDelay(delay);
+            HV_writeData(renderData & g2);
+        } else {
+            osDelay(50);
+//            writeAllLED(0x010101);
         }
     }
 }
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "missing_default_case"
+
 void buttonHandle() {
     buttonAction_t btnPress;
     if (xQueueReceive(buttonPressHandle, &btnPress, 1)) {
@@ -154,12 +178,20 @@ void buttonHandle() {
                             current_setting_changed = 0;
                             break;
                         case 0:
+#ifdef IN14
+                            updateSettingValue(current_setting_item, 1);
+#else
                             updateSettingValue(current_setting_item, -1);
+#endif
                             current_setting_changed = 1;
                             break;
                         case 2:
+#ifdef IN14
+                            updateSettingValue(current_setting_item, -1);
+#else
                             updateSettingValue(current_setting_item, 1);
-                            current_setting_changed = 1;
+
+#endif                            current_setting_changed = 1;
                             break;
                     }
                     current_setting_value = readSettingValue(current_setting_item);
@@ -179,9 +211,9 @@ void buttonHandle() {
                     }
                 } else {
                     if (btnPress.buttonId == 0) {
-                        antiPosionPosition --;
+                        antiPosionPosition--;
                     } else if (btnPress.buttonId == 2) {
-                        antiPosionPosition ++;
+                        antiPosionPosition++;
                     } else {
                         antiPosionPosition = 0;
                     }
@@ -200,6 +232,7 @@ void buttonHandle() {
         }
     }
 }
+
 #pragma clang diagnostic pop
 
 void clockDisplayMechanism() {
@@ -210,7 +243,7 @@ void clockDisplayMechanism() {
 }
 
 void settingRenderMechanism() {
-    if (current_setting_item > 99){
+    if (current_setting_item > 99) {
         current_setting_item = CLOCKSETTING_HOUR;
     }
     sprintf(textDisplay, "%02d%04d", current_setting_item, current_setting_value);
@@ -219,7 +252,7 @@ void settingRenderMechanism() {
 
 void tubeRecoverMechanism() {
     sprintf(textDisplay, "%06d", ((uint16_t) antiPosionPosition) * 111111);
-    antiPosionPosition ++;
+    antiPosionPosition++;
     if (antiPosionPosition > 9) {
         antiPosionPosition = 0;
     }
@@ -261,21 +294,21 @@ void ledHandle() {
 
 void powerHandle() {
     if (masterClockState == CLOCKSTATE_OFF || masterClockState == CLOCKSTATE_SLEEP) {
-        GPIOA -> BSRR = 1U << 7;
+        GPIOA->BSRR = 1U << 7;
     } else {
-        GPIOA -> BRR = (1U << 7);
+        GPIOA->BRR = (1U << 7);
     }
 }
 
 void temperatureMechanism() {
     uint16_t temp = (uint16_t) (getTemperatureC() * 10);
-    sprintf(textDisplay,  "%02d---%01d", temp / 10, (temp % 10));
+    sprintf(textDisplay, "%02d---%01d", temp / 10, (temp % 10));
     xQueueSend(renderQueueHandle, &textDisplay, 1);
 }
 
 void clockMechanismLoop(const void __unused *p) {
     osDelay(100);
-    for(;;) {
+    for (;;) {
         buttonHandle(); // Handle Button Presses
         powerHandle();
         ledHandle();
@@ -310,7 +343,7 @@ void clockMechanismLoop(const void __unused *p) {
 
 /// Other Tasks
 
-uint64_t translateDisplay(char* charsToDisplay) {
+uint64_t translateDisplay(char *charsToDisplay) {
     uint64_t bitsRegister = 0;
     uint64_t unit1 = 1;
     for (int i = 0; i < 6; i++) {
@@ -324,6 +357,13 @@ uint64_t translateDisplay(char* charsToDisplay) {
 }
 
 int pinOffsetFromChar(char c) {
+#ifdef IN14
+    int offset = c - '0';
+    if (offset < 10) {
+        return (10 - offset) % 10;
+    }
+    return -1;
+#else
     int rtnValue = (c - '1');
     if (rtnValue < 0) {
         rtnValue = 9;
@@ -332,4 +372,5 @@ int pinOffsetFromChar(char c) {
         return rtnValue;
     }
     return -1;
+#endif
 }

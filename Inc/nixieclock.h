@@ -9,6 +9,8 @@
 #include "stm32f1xx_hal.h"
 #include "nixie_setting.h"
 
+#define IN14
+
 extern I2C_HandleTypeDef hi2c1;
 extern RTC_HandleTypeDef hrtc;
 

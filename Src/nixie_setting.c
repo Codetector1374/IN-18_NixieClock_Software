@@ -27,6 +27,13 @@ uint16_t readStoredSettingValue(clockSettingItem_t item) {
             return RTC_readTime().minute;
         case CLOCKSETTING_SECOND:
             return RTC_readTime().second;
+        case CLOCKSETTING_CENTURY:
+        case CLOCKSETTING_YAER:
+            return RTC_readDate().year;
+        case CLOCKSETTING_MONTH:
+            return RTC_readDate().month;
+        case CLOCKSETTING_DAY:
+            return RTC_readDate().day;
         default:
             return 0;
     }
